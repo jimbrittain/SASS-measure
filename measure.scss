@@ -1,0 +1,111 @@
+//requires math.scss
+$base-font-size: 16px; //should always be a pixel value;
+@function measure($val, $measurement:'px', $base:$base-font-size, $final_result_is_number:false){
+ $val_unit: 'px';
+ @if unitless($val) == false { $val_unit: unit($val); }
+ $base_unit: 'px';
+ @if strip-units($val) == 0 { 
+   //@return 0 + $measurement;
+   @return zeromeasure($measurement);
+ }
+ @if unitless($base) == false { $base_unit: unit($base); }
+ @if $base < 0 { $base: abs($base); } //not necessary but a nice fix
+ @if $val_unit == $measurement {
+   @return strip-units($val) + zeromeasure($measurement);
+ } @else {
+   $end_value: $val;
+   $end_error: false;
+   @if measure_isAbsolute($val_unit) == true and measure_isAbsolute($base_unit) == false and measure_isAbsolute($measurement) == false {
+     //@debug "arr";
+     $end_error: true;
+     $end_value: $val;
+   } @else {
+     @if measure_isAbsolute($val_unit) { $val: (strip-units($val)/findmeasure_abs($val_unit)); } @else { $val: (strip-units($val)*findmeasure_rel($val_unit)); }
+     @if measure_isAbsolute($base_unit) { $base: (strip-units($base)/findmeasure_abs($base_unit)); } @else { $base: (strip-units($base)/findmeasure_rel($base_unit)); }
+     @if measure_isAbsolute($measurement) {
+       @if measure_isAbsolute($val_unit) == false {
+         @if measure_isAbsolute($base_unit) == false {
+          //@debug "rar e";
+          $end_error: true;
+          $end_value: $val;
+          $measurement: $val_unit;
+         } @else { 
+           //@debug "raa";
+           $end_value: ((strip-units($val) * strip-units($base)) * findmeasure_abs($measurement)); }
+       } @else { 
+         //@debug "a?a";
+         $end_value: ((strip-units($val)) * findmeasure_abs($measurement)); }
+     } @else {
+       @if measure_isAbsolute($base_unit) == false {
+         //@debug "rrr";
+         $end_value: (strip-units($val) / findmeasure_rel($measurement));
+       } @else { 
+         @if measure_isAbsolute($val_unit){
+           //@debug "ara";
+           $end_value: ((strip-units($val)/strip-units($base)) / findmeasure_rel($measurement));
+         } @else {
+           //@debug "rra";
+           $end_value: ((strip-units($val)) / findmeasure_rel($measurement)); }}}}
+   @if $end_error { @debug "Could not convert value(" + $val + ") to a " + $measurement + " with base(" + $base + ")"; }
+   @if ($end_value + "") == "NaN" { $end_value: 0; }
+   @if ($end_value + "") == "Infinity" { $end_value: 0; }
+   //@if $final_result_is_number == false {
+     //$end_value: $end_value + unquote($measurement);
+     //@if typeof $end_value == "string" { $end_value: unquote($end_value); }
+   //}
+   $end_value: zeromeasure($measurement) + $end_value;
+   @return $end_value; }}
+
+@function zeromeasure($unit){
+  $units: 'em' 0em, 'ex' 0ex, 'px' 0px, 'in' 0in, 'cm' 0cm, 'pc' 0pc, 'pt' 0pt, '%' 0%, 'vw' 0vw, 'vh' 0vh, 'rem' 0rem, 'ch' 0ch, 'mm' 0mm, 'vmin' 0vmin, 'vmax' 0vmax, 'deg' 0deg;
+  $found: -1;
+  $i: 1;
+  @while($found == -1 and $i < (length($units) + 1)){
+    $on: nth($units, $i);
+    @if(nth($on,1) == $unit){ $found: nth($on,2); }
+    $i: $i + 1;
+  }
+  @return if($found != -1, $found, 0px);
+}
+
+@function findmeasure_abs($unit) {
+  $values: 'px' 'in' 'cm' 'mm' 'pc' 'pt';
+  $calcs:
+      1 //px 1 to 1
+      0.01041666666667 //in 96 to 1
+      0.02645833333333 //cm 37.8 to 1
+      0.26458333333333 //mm 3.78 to 1
+      0.0625 //pc 16 to 1
+      0.75; //pt 1.3 to 1
+  $set: 1;
+  $set_index: index($values, $unit);
+  @if(not $set_index){
+    @warn $unit + " is not a valid unit for findmeasure_abs";
+  } @else { $set: nth($calcs, $set_index); }
+  @return $set; }
+@function findmeasure_rel($unit) {
+  $values: 'em' 'ex' '%' 'vw' 'vh' 'vmin' 'vmax' 'rem' 'ch';
+  $calcs:
+      1 //em
+      0.53 //ex 8.48@16 Arial/Helvetica
+      0.01 //%
+      0.01 //vw
+      0.01 //vh
+      0.01 //vmin
+      0.01 //vmax
+      1
+      0; //rem;
+  $set: 1;
+  $set_index: index($values, $unit);
+  @if(not $set_index){
+    @warn $unit + "is not a valid unit for findmeasure_rel";
+  } @else { $set: nth($calcs, $set_index); }
+  @return $set; }
+@function measure_isAbsolute($unit){
+  $values: 'px' 'in' 'cm' 'mm' 'pc' 'pt';
+  $index: index($values, $unit);
+  @return if(not $index, false, true);
+ // @if unitless($val) == false { 
+   // $val_unit: unit($val);
+ // } @else { $val_unit: $val; }
+}
